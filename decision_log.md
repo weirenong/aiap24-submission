@@ -1,8 +1,8 @@
 # AIAP Technical Assessment — Decision Log
 
-**Candidate name (as in NRIC):**
+**Candidate name (as in NRIC):** Ong Wei Ren
 
-**Email (as used in your application):**
+**Email (as used in your application):** weirenjune@gmail.com
 
 ---
 

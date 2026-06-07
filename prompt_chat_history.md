@@ -1,10 +1,10 @@
 # AIAP Technical Assessment — Prompt Chat History
 
-**Candidate name (as in NRIC):**
+**Candidate name (as in NRIC):** Ong Wei Ren
 
-**Email (as used in your application):**
+**Email (as used in your application):** weirenjune@gmail.com
 
-**AI assistant(s) used:** _(e.g., Claude 4.6 Sonnet, ChatGPT GPT-5, GitHub Copilot, Cursor)_
+**AI assistant(s) used:** Cline Minimax M2.7, Cline Qwen3 Coder 30B
 
 ---
 
