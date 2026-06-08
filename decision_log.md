@@ -82,8 +82,7 @@ Where did you use the AI assistant in this work? Give three specific examples of
 
 
 **Your answer:**
-
-
+1. I used the AI assistant to brainstorm features. It gave me code that listed peak hours. As the list was too wide and covered too many hours in the day, 10 out of 24 hours. So I modified it to only capture the absolute peak periods which is 8-9am, 12-1pm and 6-8pm so the peak hours will result in more meaningful patterns. It also gave me features that used data that were are not going to be avaialble at the point of prediction like how late was the parcel, so I removed such suggested features.
 
 
 
