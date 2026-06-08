@@ -47,7 +47,7 @@ Restate, in your own words, the refined problem you decided to solve. List your 
 
 **Your answer:**
 
-We will build a model that predicts customer rating (1–5) for each delivery at booking time. For every new delivery, the model will be used to score each available driver, predicting the expected rating if that driver handles the delivery. The dispatch team will then assign the delivery to the driver with the highest predicted rating.
+The objective is to predict the customer's rating score to help the company to assign deliveries to the best driver to achieve better overall ratings. We will build a model that predicts customer rating (1–5) for each delivery at booking time so this can be used for assignment to a driver. For every new delivery, the model will be used to score each available driver, predicting the expected rating if that driver handles the delivery. The dispatch team will then assign the delivery to the driver with the highest predicted rating. This solves the constraint where the company has to only make use of their current delivery fleet and still achieve better overall ratings.
 
 Key Assumptions
 
