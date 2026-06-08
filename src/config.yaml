@@ -1,0 +1,33 @@
+file_path: './data/delivery.db'
+target_column: rating
+val_test_size: 0.2
+val_size: 0.5
+cv: 5
+scoring: f1_macro
+hyperparameter_tuning:
+  decision_tree:
+    classifier__criterion: ['gini', 'entropy']
+    classifier__max_depth: [None, 10, 20, 30]
+    classifier__min_samples_split: [2, 5, 10]
+    classifier__min_samples_leaf: [1, 2, 4]
+  random_forest:
+    classifier__n_estimators: [50, 100, 200]
+    classifier__max_depth: [None, 10, 20]
+    classifier__min_samples_split: [2, 5]
+    classifier__min_samples_leaf: [1, 2]
+  knn:
+    classifier__n_neighbors: [3, 5, 11, 15]
+    classifier__weights: ['uniform', 'distance']
+    classifier__metric: ['euclidean', 'manhattan']
+numerical_features:
+  - num_stops_on_route
+  - driver_experience_months
+  - distance_km
+nominal_features:
+  - parcel_category
+  - branch
+ordinal_features:
+  - delivery_priority
+passthrough_features:
+  - delivery_hour_before_midnight
+  - pickup_hour_before_midnight
