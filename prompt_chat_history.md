@@ -46,7 +46,7 @@ List one share link per chat with the AI. Use a short descriptor so assessors
 know what each chat was about.
 
 - **Session 1** — Writing code for Data Cleaning — Cline: not available
-- **Session 2** — [brief description] — [tool name]: [paste URL here]
+- **Session 2** — Feature engineering brainstorm and implementation — Cline: not available
 - **Session 3** — [brief description] — [tool name]: [paste URL here]
 
 _(Add more lines as needed. Mark "not available" for IDE-based tools.)_
@@ -324,23 +324,162 @@ __Act Mode (⌘⇧A)__ so I can add this to the notebook file for you.
 
 ---
 
-### Session 2 — [brief description] — [tool name]
+### Session 2 — Feature engineering brainstorm and implementation — Cline
 
-[User] _..._
+```
+[User]
+Based on the preliminary data exploration and data cleaning from eda.ipynb, generate code for feature engineering so that we can have potential useful features for the prediction of rating (regression).
 
-[AI] _..._
+Key features that need to be engineered:
+* any date time related feature, day / hour or time taken for delivery features
+* accumulated total distance of deliveries for the day based on driver id based on day
+* any other feature you can think of that is high impact
 
-_(continue)_
+suggest your top 5 features after brainstroming and give me the code.
+refer to the attached pdf document for context.
 
----
+[AI]
+I'll start by reading the full eda.ipynb to understand the current data structure and what has been done so far, then suggest high-impact features for the prediction task.
 
-### Session 3 — [brief description] — [tool name]
+Cline read 1 file:
 
-[User] _..._
+eda.ipynb · lines 1-313‎
 
-[AI] _..._
+Plan Created
 
-_(continue)_
+Based on my analysis of your eda.ipynb, I've identified the cleaned DataFrame structure and the available datetime columns. Here's my recommended feature engineering plan:
+
+Top 5 High-Impact Features for Rating Prediction:
+Delivery Delay - Difference between actual and promised delivery time. Late deliveries directly impact customer satisfaction.
+
+Day of Week & Hour - Temporal features from delivery_datetime to capture patterns (e.g., weekend rush, lunch hour deliveries).
+
+Driver Daily Accumulated Distance - Sum of distance_km for all deliveries by a driver on the same day. High cumulative distance may indicate fatigue and rushed deliveries.
+
+Time from Pickup to Delivery (Delivery Duration) - How long the driver took to complete the delivery from pickup, indicating efficiency/stops.
+
+Days Since Booking - How far in advance the delivery was booked, which may correlate with customer expectations and planning quality.
+
+Would you like me to provide the code for implementing these features in your eda.ipynb?
+
+
+okay write the code for these 5
+
+
+
+
+I'll now switch to 
+Act Mode (⌘⇧A) to write the feature engineering code.
+
+
+
+
+Cline has a question:
+
+Would you like me to switch to 
+Act Mode (⌘⇧A) to write the feature engineering code into your eda.ipynb?
+
+Yes, switch to Act mode now
+No, I'll do it manually
+
+
+
+Plan Created
+
+Here's the code for the 5 feature engineering features. You can copy and paste this into the empty cell in your "Feature Engineering" section:
+
+
+# =============================================================================
+# FEATURE ENGINEERING - Top 5 Features for Rating Prediction
+# =============================================================================
+
+# Reload original data to access driver_id for accumulated features
+conn = sqlite3.connect('data/delivery.db')
+df_deliveries = pd.read_sql_query("SELECT * FROM deliveries", conn)
+df_feedback = pd.read_sql_query("SELECT * FROM feedback", conn)
+conn.close()
+
+# Merge with feedback to get ratings
+df_fe = df_feedback.merge(df_deliveries, on='delivery_id', how='inner')
+
+# Convert datetime columns
+datetime_cols = ['booking_datetime', 'pickup_datetime', 
+                 'promised_delivery_datetime', 'delivery_datetime']
+for col in datetime_cols:
+    df_fe[col] = pd.to_datetime(df_fe[col], errors='coerce')
+
+# =============================================================================
+# FEATURE 1: Delivery Delay (difference between actual and promised time)
+# =============================================================================
+df_fe['delivery_delay_minutes'] = (
+    df_fe['delivery_datetime'] - df_fe['promised_delivery_datetime']
+).dt.total_seconds() / 60
+
+# =============================================================================
+# FEATURE 2: Day of Week & Hour from delivery_datetime
+# =============================================================================
+df_fe['delivery_day_of_week'] = df_fe['delivery_datetime'].dt.dayofweek
+df_fe['delivery_hour'] = df_fe['delivery_datetime'].dt.hour
+
+# =============================================================================
+# FEATURE 3: Driver Daily Accumulated Distance
+# =============================================================================
+# Extract date from delivery_datetime for grouping by driver+day
+df_fe['delivery_date'] = df_fe['delivery_datetime'].dt.date
+
+# Calculate accumulated distance per driver per day
+# This captures how "busy" or fatigued a driver is that day
+driver_daily_distance = df_fe.groupby(['driver_id', 'delivery_date'])['distance_km'].transform('sum')
+df_fe['driver_daily_total_distance_km'] = driver_daily_distance
+
+# =============================================================================
+# FEATURE 4: Delivery Duration (time from pickup to delivery)
+# =============================================================================
+df_fe['delivery_duration_minutes'] = (
+    df_fe['delivery_datetime'] - df_fe['pickup_datetime']
+).dt.total_seconds() / 60
+
+# =============================================================================
+# FEATURE 5: Days Since Booking (advance booking time)
+# =============================================================================
+df_fe['days_since_booking'] = (
+    df_fe['pickup_datetime'] - df_fe['booking_datetime']
+).dt.total_seconds() / (60 * 60 * 24)
+
+# =============================================================================
+# Additional Useful Features
+# =============================================================================
+# Pickup hour (when driver picks up from depot)
+df_fe['pickup_hour'] = df_fe['pickup_datetime'].dt.hour
+
+# Is weekend
+df_fe['is_weekend'] = df_fe['delivery_day_of_week'].isin([5, 6]).astype(int)
+
+# Is peak hour (11am-2pm lunch rush, 6-8pm evening)
+df_fe['is_peak_hour'] = df_fe['delivery_hour'].isin([11, 12, 13, 18, 19, 20]).astype(int)
+
+# Parcel value per kg (handling intensity indicator)
+df_fe['parcel_value_per_kg'] = pd.to_numeric(df_fe['parcel_value_sgd'], errors='coerce') / pd.to_numeric(df_fe['parcel_weight_kg'], errors='coerce')
+
+print("Engineered Features Summary:")
+print(df_fe[['delivery_delay_minutes', 'delivery_day_of_week', 'delivery_hour', 
+             'driver_daily_total_distance_km', 'delivery_duration_minutes', 
+             'days_since_booking']].describe())
+Explanation of the 5 features:
+
+Feature	Rationale
+delivery_delay_minutes	Late deliveries directly impact satisfaction - this is likely the most predictive feature
+delivery_day_of_week + delivery_hour	Captures temporal patterns - weekends/rush hours may have different service levels
+driver_daily_total_distance_km	High cumulative distance may indicate driver fatigue, rushed deliveries, less care
+delivery_duration_minutes	Long durations may indicate traffic delays, difficulty, or inefficient routing
+days_since_booking	Longer booking lead time may set different customer expectations
+Additional features added:
+
+pickup_hour - When driver starts the delivery run
+is_weekend - Binary flag for weekend deliveries
+is_peak_hour - Flag for lunch/evening rush
+parcel_value_per_kg - Value density may indicate handling care needed
+```
 
 ---
 
