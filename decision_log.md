@@ -68,7 +68,16 @@ Ratings is prioritised: The solution prioritises the best possible rating as opp
 Walk through three key decisions you made during Solution Development. For each: what options did you consider, what did you choose, and why? These can be technical (modelling choices, feature handling, evaluation metrics) or about the work itself (what to prioritise, what to drop, how to spend your time).
 
 
-**Your answer:**
+Decision 1: Treating the problem as multi-class classification instead of regression
+The initial framing of predicting a 1–5 star rating could go either way, regression predicts a continuous score, classification predicts a discrete label. I tried Ridge Regression as a sanity check and it produced a validation R² of −1.235, meaning it performed worse than a dummy model that always predicts the mean. The reason is structural: a linear model tries to fit a straight line through a bounded, discrete scale, which compresses variance and pulls all predictions toward a central average. This means the model would almost never predict a 1 or 2 star rating, which is exactly the class we care most about from an operational standpoint, those are the problematic deliveries the head of operations wants to flag. Framing it as classification lets the model learn discrete decision boundaries for each rating class and lets us use macro-averaged metrics that give equal weight to the minority classes. So I pivoted fully to classification.
+
+Decision 2: Handling class imbalance with a combination of under- and over-sampling on the training set only
+The rating distribution is severely skewed: ratings 4 and 5 account for over 62,000 of the roughly 41,000 usable rows, while ratings 1, 2, and 3 each sit below 3,300. If I trained on the raw distribution, any reasonably capable model would just learn to predict 5 almost all the time and still hit reasonable accuracy, but it would be blind to the low-rating patterns the business actually wants to catch.
+I considered three options: only over-sampling minorities, only under-sampling majorities, or a combination. Pure over-sampling on a dataset of this size would massively inflate the training set and risk overfitting on the duplicated minority rows. Pure under-sampling would throw away most of the majority class data and lose real signal. The combined approach, downsample ratings 4 and 5 to 4,000 each, then upsample ratings 1, 2, and 3 up to 4,000 each, strikes a balance: the training set ends up perfectly balanced at 20,000 rows without being either bloated or starved. Critically, I applied resampling only to the training set. The validation and test sets were kept at their natural distribution using stratified splitting so the evaluation reflects real-world class proportions and the metrics are not artificially inflated.
+
+Decision 3: Feature selection based on bivariate analysis rather than including all engineered features
+During feature engineering I created seven candidate features from the datetime columns: delivery hour, pickup hour, day of week, is weekend, is peak hour, driver daily total distance, driver median minutes to pickup, and minutes before late. Rather than feeding all of them into the model, I used the bivariate analysis, 100% normalised stacked bar charts of rating distribution per feature, to evaluate which ones actually shifted the rating mix.
+Several features that seemed intuitively relevant turned out to show flat, uniform rating distributions: is_weekend, day_of_week, is_peak_hour. Weekend and weekday operations showed identical rating stacks; peak hour congestion appeared to be absorbed by drivers without affecting ratings. Including these would add noise without signal. Delivery hour and pickup hour, however, showed a clear pattern: deliveries after midnight (hours 0–3) had a pronounced spike in 1 and 2-star ratings. Rather than including the raw hour as a numeric feature, I collapsed it into a binary flag, delivery_hour_before_midnight and pickup_hour_before_midnight, to isolate that specific behavioural risk without giving the model a spurious numeric ordering across all 24 hours. Features like minutes_before_late and driver_daily_total_distance were also excluded because they require information not available at booking time, which would leak data from the future and make the model unusable in the actual assignment scenario.
 
 
 
@@ -82,8 +91,11 @@ Where did you use the AI assistant in this work? Give three specific examples of
 
 
 **Your answer:**
-1. I used the AI assistant to brainstorm features. It gave me code that listed peak hours. As the list was too wide and covered too many hours in the day, 10 out of 24 hours. So I modified it to only capture the absolute peak periods which is 8-9am, 12-1pm and 6-8pm so the peak hours will result in more meaningful patterns. It also gave me features that used data that were are not going to be avaialble at the point of prediction like how late was the parcel, so I removed such suggested features.
+1. I used the AI assistant to brainstorm features. It gave me code that listed peak hours. As the list was too wide and covered too many hours in the day, 10 out of 24 hours. So I modified it to only capture the absolute peak periods which is 8-9am, 12-1pm and 6-8pm so the peak hours will result in more meaningful patterns. 
 
+2. It also gave me features that used data that were are not going to be avaialble at the point of prediction like how late was the parcel, so I removed such suggested features to prevent data leakage.
+
+3. The AI assitant gave me code that referenced the wrong df. So I manually edited them to reference the correct ones in my project.
 
 
 ---
@@ -92,8 +104,12 @@ Where did you use the AI assistant in this work? Give three specific examples of
 
 If you had one more week to continue this project, what would you do next, and why? What signals from your current work make those the right next steps?
 
+If I had one more week, I would focus primarily on improving the feature set, since the current performance ceiling (validation accuracy ~0.38, ROC AUC ~0.58) points to insufficient signal rather than a modelling problem, the architecture is sound, but the inputs are not expressive enough.
 
-**Your answer:**
+Build richer driver behaviour features. The single strongest predictor in the EDA was driver_experience_months (Spearman ρ = 0.22), but it is a coarse proxy for driver quality. With more time I would engineer per-driver historical features computed from past deliveries: rolling average rating over the last 30 and 90 days, recent variance in ratings (a driver with a declining trend matters differently from one who is consistently average), and the driver's historical performance broken down by route density bucket and distance band. These would capture current form rather than just tenure, and would slot naturally into the booking-time prediction workflow since they only require past data.
+
+Engineer route-level contextual features. The EDA showed that num_stops_on_route (ρ = −0.10) and distance_km (ρ ≈ −0.08) both correlate with lower ratings, but the model currently sees each delivery in isolation. A driver handling their 8th stop of the day on a 40-stop route is in a meaningfully different situation than a driver on their first stop of the day. I would add a feature for the driver's accumulated stops and distance already completed that day at the time of the new booking. This is a feasible computation at assignment time since the dispatcher knows the current route state.
+Use recipient_postal_code with an external map API. I dropped recipient_postal_code in this iteration to keep the implementation simple, but it holds real potential. Routing the postal code through a map API (e.g. OneMap or Google Maps Distance Matrix) would produce actual road distance and estimated travel time between the current driver location and the delivery address, a far more precise signal than the straight-line distance_km currently in the model. This directly addresses the distance_km correlation finding and is the most actionable data quality improvement available within the existing dataset.
 
 
 
