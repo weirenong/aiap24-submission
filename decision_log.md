@@ -59,6 +59,8 @@ Driver Assignment Use Case: The model is used per-driver to rank candidates, not
 
 Available Drivers: The system assumes a pool of available drivers is known at the time of assignment. Driver-specific features (experience, vehicle type) will be included as inputs to the model.
 
+Ratings is prioritised: The solution prioritises the best possible rating as opposed to fair or optimal fleet deployment. Capable drivers may receive more work than less capable ones.
+
 ---
 
 ## 3. Key decisions during Solution Development
